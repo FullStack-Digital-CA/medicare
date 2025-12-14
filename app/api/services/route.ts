@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { services, serviceCategories, serviceFormSchema } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 
 const ALLOWED_ORIGIN = "https://www.sintamedicalcenter.ae";
 
@@ -25,32 +25,52 @@ export async function OPTIONS() {
 }
 
 // Public endpoint - no authentication required
-// This allows external websites to fetch services for display
+// Returns categories with nested services for external website display
 export async function GET() {
   try {
-    // Join services with categories to get category title
-    const allServices = await db
-      .select({
-        id: services.id,
-        name: services.name,
-        slug: services.slug,
-        description: services.description,
-        shortDescription: services.shortDescription,
-        price: services.price,
-        duration: services.duration,
-        categoryId: services.categoryId,
-        categoryTitle: serviceCategories.title,
-        imageUrl: services.imageUrl,
-        isActive: services.isActive,
-        displayOrder: services.displayOrder,
-        createdAt: services.createdAt,
-        updatedAt: services.updatedAt,
-      })
-      .from(services)
-      .leftJoin(serviceCategories, eq(services.categoryId, serviceCategories.id))
-      .orderBy(desc(services.createdAt));
+    // Fetch all categories
+    const allCategories = await db
+      .select()
+      .from(serviceCategories)
+      .orderBy(asc(serviceCategories.displayOrder), asc(serviceCategories.title));
 
-    return NextResponse.json(allServices, { headers: corsHeaders });
+    // Fetch all services
+    const allServices = await db
+      .select()
+      .from(services)
+      .orderBy(asc(services.displayOrder), desc(services.createdAt));
+
+    // Group services by category
+    const categoriesWithServices = allCategories.map((category) => ({
+      id: category.id,
+      title: category.title,
+      slug: category.slug,
+      description: category.description,
+      icon: category.icon,
+      displayOrder: category.displayOrder,
+      isActive: category.isActive,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+      services: allServices
+        .filter((service) => service.categoryId === category.id)
+        .map((service) => ({
+          id: service.id,
+          categoryId: service.categoryId,
+          name: service.name,
+          slug: service.slug,
+          description: service.description,
+          shortDescription: service.shortDescription,
+          price: service.price?.toString() || "0.00",
+          duration: service.duration,
+          displayOrder: service.displayOrder,
+          isActive: service.isActive,
+          imageUrl: service.imageUrl || "",
+          createdAt: service.createdAt,
+          updatedAt: service.updatedAt,
+        })),
+    }));
+
+    return NextResponse.json(categoriesWithServices, { headers: corsHeaders });
   } catch (error) {
     console.error("Error fetching services:", error);
     return NextResponse.json(

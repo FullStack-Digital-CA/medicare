@@ -45,7 +45,7 @@ export default function CategoriesPage() {
 
   const fetchServices = useCallback(async () => {
     try {
-      const response = await fetch("/api/services");
+      const response = await fetch("/api/admin/services");
       if (!response.ok) {
         throw new Error("Failed to fetch services");
       }

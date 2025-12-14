@@ -57,7 +57,7 @@ export default function ServicesPage() {
   const fetchServices = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/services");
+      const response = await fetch("/api/admin/services");
       if (!response.ok) {
         throw new Error("Failed to fetch services");
       }
