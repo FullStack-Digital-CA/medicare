@@ -4,11 +4,24 @@ import { serviceCategories, categoryFormSchema } from "@/lib/db/schema";
 import { auth } from "@/lib/auth";
 import { asc } from "drizzle-orm";
 
+const ALLOWED_ORIGIN = "https://www.sintamedicalcenter.ae";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 function generateSlug(title: string): string {
   return title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+// Handle CORS preflight requests
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
 
 // Public endpoint - no authentication required
@@ -20,12 +33,12 @@ export async function GET() {
       .from(serviceCategories)
       .orderBy(asc(serviceCategories.displayOrder), asc(serviceCategories.title));
 
-    return NextResponse.json(categories);
+    return NextResponse.json(categories, { headers: corsHeaders });
   } catch (error) {
     console.error("Error fetching categories:", error);
     return NextResponse.json(
       { error: "Failed to fetch categories" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
